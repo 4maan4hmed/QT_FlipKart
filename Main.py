@@ -1,81 +1,130 @@
-# All imports required
 import cv2
-import sqlite3 as sq
-from pyzbar.pyzbar import decode
-from bar_code import barcode_number
-import streamlit as st
-from PIL import Image
+from paddleocr import PaddleOCR
+from collections import defaultdict
 import numpy as np
+from comparision import compare
 
-# Connect to SQLite database
-conn = sq.connect("Items_list.db")
-cursor = conn.cursor()
+class OCRProcessor:
+    def __init__(self):
+        self.ocr = PaddleOCR(use_angle_cls=True, lang='en', use_gpu=False)
+        self.text_frequencies = defaultdict(int)  # Track text frequencies
+        self.best_confidences = {}  # Track best confidence for each text
+        self.accumulated_text = ""  # Store accumulated text over multiple frames
+        self.frame_count = 0  # Keep track of processed frames
+        self.text_threshold = 20  # Adjust this for how much text to accumulate before output
+        print("PaddleOCR initialized successfully.")
 
-# Ensure the table exists
-cursor.execute('''
-    CREATE TABLE IF NOT EXISTS items (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        barcode TEXT NOT NULL UNIQUE,
-        name TEXT NOT NULL,
-        price REAL NOT NULL
-    );
-''')
-conn.commit()
+    def process_ocr_result(self, result):
+        """Process OCR result, accumulate text, and trigger output after Enter key is pressed."""
+        if not result or not isinstance(result, list):
+            return
+            
+        # PaddleOCR returns: [[[box, (text, confidence)], ...]]
+        try:
+            for detection in result[0]:  # First level of nesting
+                box, (text, confidence) = detection
+                
+                # Clean the text
+                text = text.strip()
+                if not text:
+                    continue
+                    
+                # Update frequency
+                self.text_frequencies[text] += 1
+                
+                # Update best confidence
+                if text not in self.best_confidences or confidence > self.best_confidences[text]:
+                    self.best_confidences[text] = confidence
+                    print(f"Text: {text} | Confidence: {confidence:.2f} | Count: {self.text_frequencies[text]}")
+                
+                # Accumulate detected text
+                self.accumulated_text += text + " "
 
-def add_item_form(barcode):
-    """Display a form to add item details when the barcode is not found"""
-    with st.form("item_form", clear_on_submit=False):  # This ensures form stays visible after submission
-        name = st.text_input("Enter Item Name")
-        price = st.number_input("Enter Item Price", min_value=0.0, step=0.01)
-        submit_button = st.form_submit_button("Add Item")
+        except Exception as e:
+            print(f"Error processing detection: {e}")
 
-    # Insert the data into the database when the form is submitted
-    if submit_button:
-        if name and price > 0:
-            try:
-                # Insert the new item into the database
-                cursor.execute("INSERT INTO items (barcode, name, price) VALUES (?, ?, ?)", (barcode, name, price))
-                conn.commit()
-                st.success(f"Item '{name}' with barcode {barcode} added successfully!")
-            except sq.IntegrityError:
-                st.error("This barcode already exists. Please use a unique barcode.")
-        else:
-            st.error("Please fill in all fields and ensure the price is greater than 0.")
+    def run(self):
+        """Run the OCR processor on camera feed."""
+        cap = cv2.VideoCapture(0)
+        if not cap.isOpened():
+            raise RuntimeError("Error: Unable to access the camera.")
 
-def run():
-    """Main function to handle barcode detection and database query"""
-    barcodes = barcode_number(img)
+        try:
+            while True:
+                ret, frame = cap.read()
+                if not ret:
+                    break
 
-    if barcodes:
-        for barcode in barcodes:
-            st.write(f"Barcode found: {barcode}")
+                img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                result = self.ocr.ocr(np.array(img), cls=True)
+                
+                if result:
+                    self.process_ocr_result(result)
 
-            # Query the database to find the item corresponding to the barcode
-            cursor.execute("SELECT * FROM items WHERE barcode = ?", (barcode,))
-            result = cursor.fetchone()
+                # Display the frame
+                cv2.imshow('OCR Detection (Press Enter to output, Q to quit)', frame)
 
-            if result:
-                st.write(f"Item found: ID {result[0]}, Name {result[2]}, Price {result[3]}")
-            else:
-                st.write("Item not found in the database.")
-                add_item_form(barcode)  # Show form to add the missing item
+                key = cv2.waitKey(1) & 0xFF
 
-    else:
-        st.write("No barcodes found in the image.")
+                if key == ord('q'):
+                    break
 
-# Load the image of the item
-st.title('OCR with Barcode Detection')
-input_method = st.radio("Choose input method", ('Capture Image', 'Upload Image'))
-uploaded_file = None
+                # Press Enter to output results and reset detection
+                if key == 13:  # 13 is the Enter key
+                    if len(self.accumulated_text.split()) >= self.text_threshold:  # If we have enough text
+                        self.perform_comparison()
 
-if input_method == 'Capture Image':
-    uploaded_file = st.camera_input("Capture an image")
-else:
-    uploaded_file = st.file_uploader("Upload an image", type=['jpg', 'jpeg', 'png'])
+                    self.reset_detection()
 
-if uploaded_file is not None:
-    image = Image.open(uploaded_file).convert('RGB')
-    img = np.array(image)
-    run()
+        finally:
+            cap.release()
+            cv2.destroyAllWindows()
 
-conn.close()
+    def perform_comparison(self):
+        """Perform comparison of accumulated text and save results."""
+        try:
+            if self.accumulated_text.strip():
+                print("\nComparing accumulated OCR text with database...")
+                compare(self.accumulated_text.strip())
+                self.save_results()
+
+        except Exception as e:
+            print(f"Error during comparison: {e}")
+
+    def reset_detection(self):
+        """Reset the accumulated text and frequencies for the next object detection."""
+        print("\nResetting detection for the next object...")
+        self.accumulated_text = ""
+        self.text_frequencies.clear()
+        self.best_confidences.clear()
+
+    def save_results(self):
+            """Save accumulated results to file."""
+    try:
+        # Write accumulated OCR results to 'output_ocr_text.txt'
+        with open('output_ocr_text.txt', 'w', encoding='utf-8') as f:
+            f.write("=== Accumulated OCR Results ===\n\n")
+            f.write(self.accumulated_text.strip())
+        
+        # Read the contents of 'output_ocr_text.txt' and pass to compare function
+        with open('output_ocr_text.txt', 'r', encoding='utf-8') as f:
+            detected_text = f.read().strip()
+        
+        # Save the results of comparison to 'items_detected.txt'
+        with open('items_detected.txt', 'w', encoding='utf-8') as f2:
+            f2.write(compare(detected_text))
+
+        print("\nResults saved to output_ocr_text.txt and items_detected.txt")
+
+    except Exception as e:
+        print(f"Error saving results: {e}")
+
+
+if __name__ == "__main__":
+    try:
+        # Initialize and run OCR processor
+        processor = OCRProcessor()
+        processor.run()
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
