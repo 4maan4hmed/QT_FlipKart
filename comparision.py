@@ -30,13 +30,14 @@ def compare(text):
     similarity_score = cosine_similarities.max()
 
     # Return the item number with the highest similarity
-    return most_similar_item_number, similarity_score
+    return most_similar_item_number
 
 
 
 # Example usage
 ocr_camera_result = "MIST Odonil Lavender Lavende Odoni Odon ROON Lavend 85.5g/150m Laver your home ROOM SPRA ovenderMIST one leel special."
-item_number, similarity = compare(ocr_camera_result)
+item_number = compare(ocr_camera_result)
 
 # Output result
-print(f"The most similar item number is: {data_operation.get_item_details(item_number)["item_name"]} with similarity: {similarity:.2f}")
+print(f"The most similar item number is: {data_operation.get_item_details(item_number)["item_name"]}")
+print(item_number)

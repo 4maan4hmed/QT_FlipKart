@@ -3,7 +3,7 @@ import json
 with open('C:/Users/amaan/OneDrive/Desktop/VIT/Semester 5/Flipkart Grid/OCR/Final Code/Database/data.json', 'r') as file:
     items = json.load(file)
 """--------------------------------------------------------------------------------------------"""
-def get_item():
+def get_items():
     return items
 def get_item_details(item_number):
     for item in items:
