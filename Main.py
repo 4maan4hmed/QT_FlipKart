@@ -9,13 +9,10 @@ class OCRProcessor:
         self.ocr = PaddleOCR(use_angle_cls=True, lang='en', use_gpu=False)
         self.text_frequencies = defaultdict(int)  # Track text frequencies
         self.best_confidences = {}  # Track best confidence for each text
-        self.accumulated_text = ""  # Store accumulated text over multiple frames
-        self.frame_count = 0  # Keep track of processed frames
-        self.text_threshold = 20  # Adjust this for how much text to accumulate before output
         print("PaddleOCR initialized successfully.")
 
     def process_ocr_result(self, result):
-        """Process OCR result, accumulate text, and trigger output after Enter key is pressed."""
+        """Process OCR result with correct format handling."""
         if not result or not isinstance(result, list):
             return
             
@@ -36,9 +33,6 @@ class OCRProcessor:
                 if text not in self.best_confidences or confidence > self.best_confidences[text]:
                     self.best_confidences[text] = confidence
                     print(f"Text: {text} | Confidence: {confidence:.2f} | Count: {self.text_frequencies[text]}")
-                
-                # Accumulate detected text
-                self.accumulated_text += text + " "
 
         except Exception as e:
             print(f"Error processing detection: {e}")
@@ -61,63 +55,51 @@ class OCRProcessor:
                 if result:
                     self.process_ocr_result(result)
 
-                # Display the frame
-                cv2.imshow('OCR Detection (Press Enter to output, Q to quit)', frame)
-
-                key = cv2.waitKey(1) & 0xFF
-
-                if key == ord('q'):
+                cv2.imshow('OCR Detection (Press Q to quit)', frame)
+                
+                if cv2.waitKey(1) & 0xFF == ord('q'):
                     break
 
-                # Press Enter to output results and reset detection
-                if key == 13:  # 13 is the Enter key
-                    if len(self.accumulated_text.split()) >= self.text_threshold:  # If we have enough text
-                        self.perform_comparison()
-
-                    self.reset_detection()
-
         finally:
+
             cap.release()
             cv2.destroyAllWindows()
-
-    def perform_comparison(self):
-        """Perform comparison of accumulated text and save results."""
-        try:
-            if self.accumulated_text.strip():
-                print("\nComparing accumulated OCR text with database...")
-                compare(self.accumulated_text.strip())
-                self.save_results()
-
-        except Exception as e:
-            print(f"Error during comparison: {e}")
-
-    def reset_detection(self):
-        """Reset the accumulated text and frequencies for the next object detection."""
-        print("\nResetting detection for the next object...")
-        self.accumulated_text = ""
-        self.text_frequencies.clear()
-        self.best_confidences.clear()
+            self.save_results()
 
     def save_results(self):
-            """Save accumulated results to file."""
-    try:
-        # Write accumulated OCR results to 'output_ocr_text.txt'
-        with open('output_ocr_text.txt', 'w', encoding='utf-8') as f:
-            f.write("=== Accumulated OCR Results ===\n\n")
-            f.write(self.accumulated_text.strip())
-        
-        # Read the contents of 'output_ocr_text.txt' and pass to compare function
-        with open('output_ocr_text.txt', 'r', encoding='utf-8') as f:
-            detected_text = f.read().strip()
-        
-        # Save the results of comparison to 'items_detected.txt'
-        with open('items_detected.txt', 'w', encoding='utf-8') as f2:
-            f2.write(compare(detected_text))
+        """Save results sorted by frequency and confidence."""
+        if not self.text_frequencies:
+            print("No text detected.")
+            return
 
-        print("\nResults saved to output_ocr_text.txt and items_detected.txt")
+        try:
+            # Combine frequency and confidence data
+            results = []
+            for text, freq in self.text_frequencies.items():
+                conf = self.best_confidences.get(text, 0.0)
+                results.append((text, freq, conf))
 
-    except Exception as e:
-        print(f"Error saving results: {e}")
+            # Sort by frequency (primary) and confidence (secondary)
+            sorted_results = sorted(results, key=lambda x: (-x[1], -x[2]))
+
+            # Save top results to file
+            with open('output_ocr_text.txt', 'w', encoding='utf-8') as f:
+                f.write("=== OCR Results ===\n\n")
+
+                for text, freq, conf in sorted_results[:10]:
+                    if freq > 1:
+                        f.write(f"{text} ")
+
+            # Print summary of top results
+            print("\nTop detected texts:")
+            print("------------------")
+            for text, freq, conf in sorted_results[:5]:
+                print(f"'{text}': {freq} times (conf: {conf:.2f})")
+            
+            print("\nFull results saved to output_ocr_text.txt")
+            
+        except Exception as e:
+            print(f"Error saving results: {e}")
 
 
 if __name__ == "__main__":
@@ -126,5 +108,14 @@ if __name__ == "__main__":
         processor = OCRProcessor()
         processor.run()
 
+        # After processing, read saved OCR results
+        with open('output_ocr_text.txt', 'r', encoding='utf-8') as f:
+            ocr_text = f.read().strip()
+            if ocr_text:
+                # Compare OCR text with stored data
+                print(f"{compare(ocr_text)}\n{compare(ocr_text)}\n{compare(ocr_text)}\n{compare(ocr_text)}\n{compare(ocr_text)}\n{compare(ocr_text)}")
+            else:
+                print("No OCR text found to compare.")
+            
     except Exception as e:
-        print(f"An error occurred: {e}")
+        print(f"An error occurred: {e}") 
