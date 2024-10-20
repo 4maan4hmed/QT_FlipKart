@@ -37,35 +37,40 @@ class OCRProcessor:
         except Exception as e:
             print(f"Error processing detection: {e}")
 
-    def run(self):
-        """Run the OCR processor on camera feed."""
-        cap = cv2.VideoCapture(0)
-        if not cap.isOpened():
-            raise RuntimeError("Error: Unable to access the camera.")
+def run(self):
+    """Run the OCR processor on camera feed."""
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        raise RuntimeError("Error: Unable to access the camera.")
 
-        try:
-            while True:
-                ret, frame = cap.read()
-                if not ret:
-                    break
+    try:
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
 
-                img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                result = self.ocr.ocr(np.array(img), cls=True)
-                
-                if result:
-                    self.process_ocr_result(result)
+            img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            result = self.ocr.ocr(np.array(img), cls=True)
 
-                cv2.imshow('OCR Detection (Press Q to quit)', frame)
-                
-                if cv2.waitKey(1) & 0xFF == ord('q'):
-                    break
+            if result:
+                self.process_ocr_result(result)
 
-        finally:
+                # After processing, get the current OCR text to compare
+                current_ocr_text = " ".join(self.text_frequencies.keys()).strip()
+                if current_ocr_text:
+                    # Output the item detected by comparison
+                    detected_item = compare(current_ocr_text)
+                    print(f"Detected Item: {detected_item}")
 
-            cap.release()
-            cv2.destroyAllWindows()
-            self.save_results()
+            cv2.imshow('OCR Detection (Press Q to quit)', frame)
 
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+
+    finally:
+        cap.release()
+        cv2.destroyAllWindows()
+        self.save_results()
     def save_results(self):
         """Save results sorted by frequency and confidence."""
         if not self.text_frequencies:
@@ -109,13 +114,6 @@ if __name__ == "__main__":
         processor.run()
 
         # After processing, read saved OCR results
-        with open('output_ocr_text.txt', 'r', encoding='utf-8') as f:
-            ocr_text = f.read().strip()
-            if ocr_text:
-                # Compare OCR text with stored data
-                print(f"{compare(ocr_text)}\n{compare(ocr_text)}\n{compare(ocr_text)}\n{compare(ocr_text)}\n{compare(ocr_text)}\n{compare(ocr_text)}")
-            else:
-                print("No OCR text found to compare.")
-            
+        
     except Exception as e:
         print(f"An error occurred: {e}") 
