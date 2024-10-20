@@ -1,6 +1,7 @@
 import cv2
 from OCR import OCRProcessor  # Import the OCRProcessor class from OCR module
 from comparision import compare
+path = "C:/Users/amaan/OneDrive/Desktop/VIT/Semester 5/Flipkart Grid/OCR/Final Code/Output/output_ocr_text.txt"
 def main():
     # Initialize the OCR processor
     ocr_processor = OCRProcessor()
