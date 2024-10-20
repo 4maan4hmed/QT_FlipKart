@@ -26,14 +26,12 @@ def compare(text):
 
     # Find the item with the highest similarity score
     most_similar_index = cosine_similarities.argmax()
+    print(most_similar_index)
     most_similar_item_number = list(ocr_data.keys())[most_similar_index]
     similarity_score = cosine_similarities.max()
-
+    
     # Return the item number with the highest similarity
     return most_similar_item_number
-
-
-
 # Example usage
 ocr_camera_result = "MIST Odonil Lavender Lavende Odoni Odon ROON Lavend 85.5g/150m Laver your home ROOM SPRA ovenderMIST one leel special."
 item_number = compare(ocr_camera_result)
