@@ -1,3 +1,12 @@
+from collections import defaultdict
+import json
+from pathlib import Path
+
+import cv2
+import numpy as np
+from paddleocr import PaddleOCR
+
+
 class OCRProcessor:
     def __init__(self):
         self.ocr = PaddleOCR(use_angle_cls=True, lang='en', use_gpu=False)
