@@ -28,9 +28,9 @@ def main():
 
             key = cv2.waitKey(1) & 0xFF
             if key == ord('q'):
-                break  # Quit if 'q' is pressed
-            elif key == 13:  # Enter key (ASCII code for Enter is 13)
-                ocr_processor.reset_accumulated_text()  # Reset accumulated OCR text when Enter is pressed
+                break  
+            elif key == 13:  
+                ocr_processor.reset_accumulated_text()  
 
     finally:
         cap.release()

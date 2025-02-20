@@ -13,7 +13,7 @@ def barcode_number(img):
     return barcode_num_list
 
 # Function to save barcode data to a file
-def save_barcode_to_file(barcode_list, file_name="C:/Users/amaan/OneDrive/Desktop/VIT/Semester 5/Flipkart Grid/OCR/Final Code/Output/barcode.txt"):
+def save_barcode_to_file(barcode_list, file_name="Output/barcode.txt"):
     with open(file_name, 'a') as file:
         for barcode in barcode_list:
             file.write(f"{barcode}\n")

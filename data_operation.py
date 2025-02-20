@@ -1,6 +1,6 @@
 import json
 # Load items from the JSON file
-with open('C:/Users/amaan/OneDrive/Desktop/VIT/Semester 5/Flipkart Grid/OCR/Final Code/Database/data.json', 'r') as file:
+with open('Database/data.json', 'r') as file:
     items = json.load(file)
 """--------------------------------------------------------------------------------------------"""
 def get_items():
@@ -29,7 +29,7 @@ def add_item(item_number, item_name="Unknown", brand="Unknown", barcode=None, we
     items.append(new_item)
 
     # Save the updated list back to the JSON file
-    with open('C:/Users/amaan/OneDrive/Desktop/VIT/Semester 5/Flipkart Grid/OCR/Final Code/Database/data.json', 'w') as file:
+    with open('Database/data.json', 'w') as file:
         json.dump(items, file, indent=4)
 
     print(f"Item {item_number} added successfully.")

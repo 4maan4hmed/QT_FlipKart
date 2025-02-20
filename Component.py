@@ -27,7 +27,7 @@ def item_identifier():
     
     item_text = st.text_input("Enter item text for identification:")
     if st.button("Identify Item", key="identify_item_btn"):
-        st.success(f"Identified item: {item_text}")  # Placeholder for identification logic
+        st.success(f"Identified item: {item_text}") 
     
     if SUI.custom_button("BACK TO HOME", "type--A", "back_home_btn"):
         st.session_state.page = 'home'
